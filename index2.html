@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>分步组装动画演示</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+    #ui{
+      position: fixed; top:12px; left:12px;
+      background:rgba(0,0,0,0.78);
+      padding:12px; border-radius:8px;
+      color:#fff; z-index:10;
+    }
+    button{
+      margin:3px; padding:4px 8px; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+<div id="ui">
+  <div>组装步骤 <span id="stepInfo">0 / 0</span></div>
+  <div>
+    <button id="btnPlay">播放</button>
+    <button id="btnNext">下一步</button>
+    <button id="btnReset">重置</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x181818);
+const camera = new THREE.PerspectiveCamera(20, innerWidth / innerHeight, 0.01, 5000);
+camera.position.set(4, 2.5, 6);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const dl1 = new THREE.DirectionalLight(0xffffff,1.6);
+dl1.position.set(6,12,8); scene.add(dl1);
+const dl2 = new THREE.DirectionalLight(0xffffff,0.7);
+dl2.position.set(-6,-4,-8); scene.add(dl2);
+
+// ========= 配置 =========
+const assemblyConfig = {
+  parts: {
+    "SICK传感器轴": ["C-SICK-A01-01_Base_Shaft_20231225-1"],
+    "SICK传感器底板1": ["C-SICK-A01-02_Base_Plate_20231225-1"],
+    "SICK传感器底板2": ["C-SICK-A01-02_Base_Plate_20231225-2"],
+    "SICK支架N-1": ["C-SICK-A01-03_Bracket-N-1"],
+    "SICK支架N-2": ["C-SICK-A01-03_Bracket-N-2"],
+    "SICK支架N-3": ["C-SICK-A01-03_Bracket-N-3"],
+    "SICK支架N-4": ["C-SICK-A01-03_Bracket-N-4"],
+    "SICK安装板1": ["C-SICK-A01-04_PLATE-1"],
+    "SICK安装板2": ["C-SICK-A01-04_PLATE-2"],
+    "SICK安装板3": ["C-SICK-A01-04_PLATE-3"],
+    "SICK安装板4": ["C-SICK-A01-04_PLATE-4"],
+    "SICK-U型安装板": ["u型C-SICK-A01-04_PLATE-2"],
+    "小支架": ["小支架-1"],
+    "支承板0331": ["支承板0331(1)-1"],
+    "平垫圈SW8-1": ["PSH21A01M-10100_____________-1GB93-8__________GB_FASTENER_WASHER_SW_8-1"],
+    "平垫圈SW8-5": ["PSH21A01M-10100_____________-1GB93-8__________GB_FASTENER_WASHER_SW_8-5"],
+    "锁紧垫圈PWLAC5-1": ["PSH21A01M-10100_____________-1GB96-8_______A__C___GB_FASTENER_WASHER_PWLAC_5-1"],
+    "锁紧垫圈PWLAC5-5": ["PSH21A01M-10100_____________-1GB96-8_______A__C___GB_FASTENER_WASHER_PWLAC_5-5"],
+    "M8螺栓M8X16-N-1": ["PSH21A01M-10100_____________-1GB5783-M8__35__________________GB_FASTENER_BOLT_STBAB_A_M8X16-N-1"],
+    "M8螺栓M8X16-N-5": ["PSH21A01M-10100_____________-1GB5783-M8__35__________________GB_FASTENER_BOLT_STBAB_A_M8X16-N-5"],
+    "零件03": ["PSH21A01M-10100_____________-1PSH21A01M-10100-03_______01-1"],
+    "零件04-1": ["PSH21A01M-10100_____________-1PSH21A01M-10100-04_______01-1"],
+    "零件04-5": ["PSH21A01M-10100_____________-1PSH21A01M-10100-04_______01-5"],
+    "M6螺栓M6x27-1": ["U______-M6x27-1"],
+    "M6螺栓M6x27-2": ["U______-M6x27-2"],
+    "M6螺栓M6x27-3": ["U______-M6x27-3"],
+    "M6螺栓M6x27-4": ["U______-M6x27-4"],
+    "M6螺栓M6x27-2001": ["U______-M6x27-2001"],
+    "左门扇总成": ["Mesh_28_8","Mesh_28_11","Mesh_28_13"],
+    "右门扇总成": ["Mesh_28_17","Mesh_28_19","Mesh_28_21","Mesh_28_22"]
+  },
+  targets: {
+    "SICK传感器轴": [0,1.8,0],
+    "SICK传感器底板1": [0,1.6,0],
+    "SICK传感器底板2": [0,1.4,0],
+    "SICK支架N-1": [0.3,1.6,0],
+    "SICK支架N-2": [0.3,1.4,0],
+    "SICK支架N-3": [-0.3,1.6,0],
+    "SICK支架N-4": [-0.3,1.4,0],
+    "SICK安装板1": [0.5,1.8,0],
+    "SICK安装板2": [0.5,1.6,0],
+    "SICK安装板3": [-0.5,1.8,0],
+    "SICK安装板4": [-0.5,1.6,0],
+    "SICK-U型安装板": [0,1.2,0],
+    "小支架": [0.4,1.2,0],
+    "支承板0331": [-0.4,1.2,0],
+    "平垫圈SW8-1": [0.6,1.9,0],
+    "平垫圈SW8-5": [-0.6,1.9,0],
+    "锁紧垫圈PWLAC5-1": [0.6,1.7,0],
+    "锁紧垫圈PWLAC5-5": [-0.6,1.7,0],
+    "M8螺栓M8X16-N-1": [0.7,1.9,0],
+    "M8螺栓M8X16-N-5": [-0.7,1.9,0],
+    "零件03": [0.7,1.5,0],
+    "零件04-1": [0.7,1.3,0],
+    "零件04-5": [-0.7,1.3,0],
+    "M6螺栓M6x27-1": [0.8,1.8,0],
+    "M6螺栓M6x27-2": [0.8,1.6,0],
+    "M6螺栓M6x27-3": [-0.8,1.8,0],
+    "M6螺栓M6x27-4": [-0.8,1.6,0],
+    "M6螺栓M6x27-2001": [0,1.0,0],
+    "左门扇总成": [-1.2,0,0],
+    "右门扇总成": [1.2,0,0]
+  },
+  // ===== 组装顺序，在这里调整先后 =====
+  steps:[
+    "SICK传感器底板1",
+    "SICK传感器底板2",
+    "SICK传感器轴",
+    "SICK支架N-1",
+    "SICK支架N-2",
+    "SICK支架N-3",
+    "SICK支架N-4",
+    "SICK安装板1",
+    "SICK安装板2",
+    "SICK安装板3",
+    "SICK安装板4",
+    "SICK-U型安装板",
+    "小支架",
+    "支承板0331",
+    "平垫圈SW8-1",
+    "平垫圈SW8-5",
+    "锁紧垫圈PWLAC5-1",
+    "锁紧垫圈PWLAC5-5",
+    "M8螺栓M8X16-N-1",
+    "M8螺栓M8X16-N-5",
+    "零件03",
+    "零件04-1",
+    "零件04-5",
+    "M6螺栓M6x27-1",
+    "M6螺栓M6x27-2",
+    "M6螺栓M6x27-3",
+    "M6螺栓M6x27-4",
+    "M6螺栓M6x27-2001",
+    "左门扇总成",
+    "右门扇总成"
+  ]
+};
+const fixedMeshNames = [
+  'BEF-3SHABPKU4-1','BEF-3SHABPKU4-3','C4P-EA10531C00-1BEF-3SHABPKU4-1','C4P-EA10531C00-3BEF-3SHABPKU4-1',
+  'Mesh_17','Mesh_17_1','Mesh_17_2',
+  'Mesh_28','Mesh_28_1','Mesh_28_2','Mesh_28_3','Mesh_28_4','Mesh_28_5','Mesh_28_6','Mesh_28_7',
+  'Mesh_28_9','Mesh_28_10','Mesh_28_12','Mesh_28_14','Mesh_28_15','Mesh_28_16','Mesh_28_18','Mesh_28_20'
+];
+
+// 文本标签
+function makeTextSprite(text){
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = 512; canvas.height=128;
+  ctx.font="Bold 36px sans-serif";
+  ctx.fillStyle="#ffffff";
+  ctx.textAlign="center";
+  ctx.fillText(text,256,70);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true});
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(2.2,0.55,1);
+  return sp;
+}
+
+let model = null;
+const unitGroup = new Map(); // unitName -> {meshes:[], sprite, startPos}
+let currentStepIdx = -1;
+let animT = 0;
+const animDuration = 1.2; // 单步动画时长，秒
+let autoPlay = false;
+let playing = false;
+
+function initParts(){
+  const offsetX = 4.0;
+  const stepY = 0.38;
+  assemblyConfig.steps.forEach((unitName, idx)=>{
+    const meshNames = assemblyConfig.parts[unitName];
+    const meshes = [];
+    let sprite = null;
+    model.traverse(o=>{
+      if(!o.isMesh) return;
+      if(meshNames.includes(o.name)){
+        o.position.x += offsetX;
+        o.position.y += idx * stepY;
+        meshes.push(o);
+      }
+    })
+    const sp = makeTextSprite(unitName);
+    sp.position.copy(meshes[0].position).add(new THREE.Vector3(0,0.25,0));
+    scene.add(sp);
+    unitGroup.set(unitName, {meshes, sprite:sp, startPos:meshes[0].position.clone()});
+  })
+}
+function resetAll(){
+  currentStepIdx = -1; animT=0; playing=false; autoPlay=false;
+  assemblyConfig.steps.forEach((unitName, idx)=>{
+    const g = unitGroup.get(unitName);
+    const sx = 4.0;
+    const sy = idx * 0.38;
+    g.meshes.forEach(m=>{
+      m.position.set(sx, sy, 0);
+    })
+    g.sprite.position.set(sx, sy+0.25, 0);
+  })
+  updateUI();
+}
+function nextStep(){
+  if(playing) return;
+  if(currentStepIdx >= assemblyConfig.steps.length-1) return;
+  currentStepIdx += 1;
+  animT = 0;
+  playing = true;
+  updateUI();
+}
+function updateUI(){
+  document.getElementById("stepInfo").textContent = `${currentStepIdx+1} / ${assemblyConfig.steps.length}`;
+}
+
+new GLTFLoader().load("./model.glb", gltf=>{
+  model = gltf.scene;
+  scene.add(model);
+  initParts();
+  const box = new THREE.Box3().setFromObject(model);
+  const c = box.getCenter(new THREE.Vector3());
+  const sz = box.getSize(new THREE.Vector3()).length();
+  controls.target.copy(c);
+  camera.position.copy(c).add(new THREE.Vector3(sz*0.9, sz*0.7, sz*0.9));
+  controls.update();
+  updateUI();
+})
+
+// 按钮
+document.getElementById("btnPlay").onclick = ()=>{
+  autoPlay = !autoPlay;
+  if(autoPlay) nextStep();
+};
+document.getElementById("btnNext").onclick = nextStep;
+document.getElementById("btnReset").onclick = resetAll;
+
+const clock = new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  const dt = clock.getDelta();
+  controls.update();
+  if(playing && currentStepIdx >=0){
+    animT += dt;
+    const unitName = assemblyConfig.steps[currentStepIdx];
+    const g = unitGroup.get(unitName);
+    const targetPos = new THREE.Vector3(...assemblyConfig.targets[unitName]);
+    const t = Math.min(animT / animDuration, 1);
+    const easeT = t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; // easeInOut
+    const newPos = g.startPos.clone().lerp(targetPos, easeT);
+    g.meshes.forEach(m=>m.position.copy(newPos));
+    g.sprite.position.copy(newPos).add(new THREE.Vector3(0,0.25,0));
+    if(t>=1){
+      playing = false;
+      if(autoPlay){
+        setTimeout(()=>{
+          if(currentStepIdx < assemblyConfig.steps.length-1) nextStep();
+          else autoPlay=false;
+        }, 800);
+      }
+    }
+  }
+  renderer.render(scene, camera);
+}
+loop();
+</script>
+</body>
+</html>
