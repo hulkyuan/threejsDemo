@@ -273,75 +273,112 @@ var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.sign
 ;
 ;
 const DEFAULT_MODEL_PATH = '/model.glb';
-function ExplodingModel({ progress, modelUrl }) {
+const tmpDelta = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]();
+const tmpTarget = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]();
+function ExplodingModel({ progress, spread = 1, modelUrl }) {
     _s();
     const { scene } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Gltf$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useGLTF"])(modelUrl);
-    const group = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const parts = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
-        "ExplodingModel.useMemo[parts]": ()=>{
-            const meshes = [];
-            scene.traverse({
-                "ExplodingModel.useMemo[parts]": (child)=>{
-                    if (child instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Mesh"]) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                        meshes.push(child);
-                    }
-                }
-            }["ExplodingModel.useMemo[parts]"]);
+    const progressRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(progress);
+    progressRef.current = progress;
+    const { parts, restore } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "ExplodingModel.useMemo": ()=>{
+            const scenePos = scene.position.clone();
+            scene.updateMatrixWorld(true);
+            // 1) 爆炸中心 = 模型整体包围盒中心，并把它搬到原点
+            //    这样「页面视觉中心 == 爆炸中心」，散开才是真正向四周
             const bounds = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Box3"]().setFromObject(scene);
             const center = bounds.getCenter(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]());
-            const radius = Math.max(bounds.getSize(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]()).length() * 0.26, 0.1);
-            return meshes.map({
-                "ExplodingModel.useMemo[parts]": (mesh)=>{
-                    const origin = mesh.getWorldPosition(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]());
-                    const direction = origin.clone().sub(center);
-                    if (direction.lengthSq() < 0.001) direction.set(0, 1, 0);
-                    direction.normalize();
+            const size = bounds.getSize(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]());
+            const radius = Math.max(size.length() * 0.5, 1e-4);
+            scene.position.sub(center);
+            scene.updateMatrixWorld(true);
+            // 2) 只移动「顶层」mesh，避免父子嵌套导致位移叠加漂移
+            const meshes = [];
+            scene.traverse({
+                "ExplodingModel.useMemo": (child)=>{
+                    const mesh = child;
+                    if (!mesh.isMesh) return;
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    let p = mesh.parent;
+                    let nested = false;
+                    while(p){
+                        if (p.isMesh) {
+                            nested = true;
+                            break;
+                        }
+                        p = p.parent;
+                    }
+                    if (!nested) meshes.push(mesh);
+                }
+            }["ExplodingModel.useMemo"]);
+            const parts = meshes.map({
+                "ExplodingModel.useMemo.parts": (mesh, i)=>{
+                    // 3) 方向来自「零件自身的世界包围盒中心」，不是节点原点
+                    const meshBox = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Box3"]().setFromObject(mesh);
+                    const meshCenter = meshBox.isEmpty() ? mesh.getWorldPosition(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]()) : meshBox.getCenter(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Vector3"]());
+                    // 模型已居中，所以中心就是零件相对爆炸中心的向量
+                    const axis = meshCenter.clone();
+                    if (axis.lengthSq() < 1e-8) {
+                        // 退化情况（零件正好在中心）：用黄金角球面方向兜底
+                        const y = 1 - i / Math.max(1, meshes.length - 1) * 2;
+                        const r = Math.sqrt(Math.max(0, 1 - y * y));
+                        const theta = Math.PI * (3 - Math.sqrt(5)) * i;
+                        axis.set(Math.cos(theta) * r, y, Math.sin(theta) * r);
+                    }
+                    axis.normalize();
+                    // 4) 缓存父级世界矩阵的逆（只取旋转/缩放），位移换算不再受父级实时变换影响
+                    const toLocal = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$three$40$0$2e$186$2e$1$2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Matrix3"]();
+                    if (mesh.parent) toLocal.setFromMatrix4(mesh.parent.matrixWorld).invert();
                     return {
                         object: mesh,
-                        origin,
-                        direction,
-                        distance: radius * (0.8 + Math.random() * 0.55)
+                        home: mesh.position.clone(),
+                        axis,
+                        toLocal,
+                        distance: radius * (0.35 + Math.random() * 0.25)
                     };
                 }
-            }["ExplodingModel.useMemo[parts]"]);
+            }["ExplodingModel.useMemo.parts"]);
+            return {
+                parts,
+                restore: ({
+                    "ExplodingModel.useMemo": ()=>{
+                        scene.position.copy(scenePos);
+                        parts.forEach({
+                            "ExplodingModel.useMemo": (p)=>p.object.position.copy(p.home)
+                        }["ExplodingModel.useMemo"]);
+                    }
+                })["ExplodingModel.useMemo"]
+            };
         }
-    }["ExplodingModel.useMemo[parts]"], [
+    }["ExplodingModel.useMemo"], [
         scene
     ]);
+    // useGLTF 会缓存 scene，卸载时复位，避免二次挂载越跑越偏
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
-        "ExplodingModel.useEffect": ()=>{
-            parts.forEach({
-                "ExplodingModel.useEffect": ({ object, origin })=>{
-                    object.position.copy(origin);
-                }
-            }["ExplodingModel.useEffect"]);
-        }
+        "ExplodingModel.useEffect": ()=>restore
     }["ExplodingModel.useEffect"], [
-        parts
+        restore
     ]);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4_three$40$0$2e$186$2e$1$2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$e51d7528$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])({
         "ExplodingModel.useFrame": ()=>{
-            parts.forEach({
-                "ExplodingModel.useFrame": ({ object, origin, direction, distance })=>{
-                    const target = origin.clone().addScaledVector(direction, distance * progress * 4);
-                    const worldTarget = object.parent?.worldToLocal(target) ?? target;
-                    object.position.lerp(worldTarget, 0.16);
-                }
-            }["ExplodingModel.useFrame"]);
+            const t = progressRef.current;
+            for (const { object, home, axis, toLocal, distance } of parts){
+                tmpDelta.copy(axis).multiplyScalar(distance * t * spread).applyMatrix3(toLocal);
+                tmpTarget.copy(home).add(tmpDelta);
+                object.position.lerp(tmpTarget, 0.16); // 想要严格跟随滑杆就直接 copy(tmpTarget)
+            }
         }
     }["ExplodingModel.useFrame"]);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("primitive", {
-        ref: group,
         object: scene
     }, void 0, false, {
         fileName: "[project]/components/model-viewer.tsx",
-        lineNumber: 64,
+        lineNumber: 115,
         columnNumber: 10
     }, this);
 }
-_s(ExplodingModel, "hgTstMtUcy5RYSEta3bF5OB2qrU=", false, function() {
+_s(ExplodingModel, "BU88AeET1TzgNYuIGtBtqt06ZH4=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Gltf$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useGLTF"],
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4_three$40$0$2e$186$2e$1$2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$e51d7528$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"]
@@ -413,7 +450,7 @@ function DemoAssembly() {
                         ]
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 74,
+                        lineNumber: 125,
                         columnNumber: 122
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("meshStandardMaterial", {
@@ -422,18 +459,18 @@ function DemoAssembly() {
                         roughness: 0.25
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 74,
+                        lineNumber: 125,
                         columnNumber: 154
                     }, this)
                 ]
             }, index, true, {
                 fileName: "[project]/components/model-viewer.tsx",
-                lineNumber: 74,
+                lineNumber: 125,
                 columnNumber: 47
             }, this))
     }, void 0, false, {
         fileName: "[project]/components/model-viewer.tsx",
-        lineNumber: 74,
+        lineNumber: 125,
         columnNumber: 10
     }, this);
 }
@@ -450,14 +487,16 @@ class ModelErrorBoundary extends __TURBOPACK__imported__module__$5b$project$5d2f
     render() {
         return this.state.hasError ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(DemoAssembly, {}, void 0, false, {
             fileName: "[project]/components/model-viewer.tsx",
-            lineNumber: 80,
+            lineNumber: 131,
             columnNumber: 43
         }, this) : this.props.children;
     }
 }
-function LoadingState() {
+function LoadingOverlay() {
     _s1();
-    const { progress } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Progress$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useProgress"])();
+    const { active, progress } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Progress$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useProgress"])();
+    if (!active) return null // 原写法把 Suspense 放在 Canvas 外，永远不会 pending，loading 其实一直没显示
+    ;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "absolute inset-0 grid place-items-center text-sm text-slate-400",
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -472,12 +511,12 @@ function LoadingState() {
                         }
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 89,
+                        lineNumber: 141,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/model-viewer.tsx",
-                    lineNumber: 88,
+                    lineNumber: 140,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -488,28 +527,28 @@ function LoadingState() {
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/model-viewer.tsx",
-                    lineNumber: 91,
+                    lineNumber: 143,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/model-viewer.tsx",
-            lineNumber: 87,
+            lineNumber: 139,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/model-viewer.tsx",
-        lineNumber: 86,
+        lineNumber: 138,
         columnNumber: 5
     }, this);
 }
-_s1(LoadingState, "3FwufyhGu9P0YIm6q04fcVbtW/c=", false, function() {
+_s1(LoadingOverlay, "7oPsqW/NHv4Zl1cybqiJ7aC/Dg4=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Progress$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useProgress"]
     ];
 });
-_c2 = LoadingState;
-function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH }) {
+_c2 = LoadingOverlay;
+function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH, spread = 1 }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "absolute inset-0",
         children: [
@@ -535,14 +574,14 @@ function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH }) {
                         ]
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 101,
+                        lineNumber: 161,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ambientLight", {
                         intensity: 1.3
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 102,
+                        lineNumber: 162,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("directionalLight", {
@@ -556,7 +595,7 @@ function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH }) {
                         color: "#dff7ff"
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 103,
+                        lineNumber: 163,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pointLight", {
@@ -570,7 +609,7 @@ function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH }) {
                         color: "#2076ff"
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 104,
+                        lineNumber: 164,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Suspense"], {
@@ -581,37 +620,38 @@ function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH }) {
                                 environmentIntensity: 0.65
                             }, void 0, false, {
                                 fileName: "[project]/components/model-viewer.tsx",
-                                lineNumber: 106,
+                                lineNumber: 166,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Bounds$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Bounds"], {
                                 fit: true,
                                 clip: true,
                                 observe: true,
-                                margin: 1.2,
+                                margin: 1.4,
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ModelErrorBoundary, {
                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ExplodingModel, {
                                         progress: progress,
+                                        spread: spread,
                                         modelUrl: modelUrl
                                     }, void 0, false, {
                                         fileName: "[project]/components/model-viewer.tsx",
-                                        lineNumber: 109,
+                                        lineNumber: 169,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/model-viewer.tsx",
-                                    lineNumber: 108,
+                                    lineNumber: 168,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/model-viewer.tsx",
-                                lineNumber: 107,
+                                lineNumber: 167,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 105,
+                        lineNumber: 165,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f40$react$2d$three$2b$drei$40$10$2e$7$2e$9_$40$react$2d$three$2b$fiber$40$9$2e$8$2e$2_$40$types$2b$react$40$19$2e$2$2e$14_react$2d$dom$40$19$2e$2$2e$4_cb32e8d0a6269f100cbacb6cc104216e$2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$OrbitControls$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["OrbitControls"], {
@@ -622,30 +662,24 @@ function ModelViewer({ progress, modelUrl = DEFAULT_MODEL_PATH }) {
                         maxDistance: 10
                     }, void 0, false, {
                         fileName: "[project]/components/model-viewer.tsx",
-                        lineNumber: 113,
+                        lineNumber: 173,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/model-viewer.tsx",
-                lineNumber: 100,
+                lineNumber: 160,
                 columnNumber: 7
             }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Suspense"], {
-                fallback: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LoadingState, {}, void 0, false, {
-                    fileName: "[project]/components/model-viewer.tsx",
-                    lineNumber: 115,
-                    columnNumber: 27
-                }, this)
-            }, void 0, false, {
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$next$40$16$2e$4$2e$3_$40$babel$2b$core$40$7$2e$29$2e$7_$40$types$2b$node$40$24$2e$10$2e$4_react$2d$dom$40$19$2e$2$2e$4_react$40$19$2e$2$2e$4_$5f$react$40$19$2e$2$2e$4$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LoadingOverlay, {}, void 0, false, {
                 fileName: "[project]/components/model-viewer.tsx",
-                lineNumber: 115,
+                lineNumber: 175,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/model-viewer.tsx",
-        lineNumber: 99,
+        lineNumber: 159,
         columnNumber: 5
     }, this);
 }
@@ -653,7 +687,7 @@ _c3 = ModelViewer;
 var _c, _c1, _c2, _c3;
 __turbopack_context__.k.register(_c, "ExplodingModel");
 __turbopack_context__.k.register(_c1, "DemoAssembly");
-__turbopack_context__.k.register(_c2, "LoadingState");
+__turbopack_context__.k.register(_c2, "LoadingOverlay");
 __turbopack_context__.k.register(_c3, "ModelViewer");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
