@@ -61,6 +61,7 @@ function ExplodingModel({
     })
 
     const parts: Part[] = meshes.map((mesh, i) => {
+      // console.log(mesh)
       // 3) 方向来自「零件自身的世界包围盒中心」，不是节点原点
       const meshBox = new THREE.Box3().setFromObject(mesh)
       const meshCenter = meshBox.isEmpty()
