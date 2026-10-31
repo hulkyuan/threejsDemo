@@ -1,5 +1,3 @@
-'use client'
-
 import React, { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bounds, Environment, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
@@ -164,7 +162,8 @@ export function ModelViewer({
         <directionalLight castShadow position={[4, 6, 3]} intensity={3.2} color="#dff7ff" />
         <pointLight position={[-3, 1, -2]} intensity={18} distance={8} color="#2076ff" />
         <Suspense fallback={null}>
-          <Environment preset="studio" environmentIntensity={0.65} />
+          {/* <Environment preset="studio" environmentIntensity={0.65} /> */}
+          <Environment files="/studio_small_03_1k.hdr" />
           <Bounds fit clip observe margin={1.4}>
             <ModelErrorBoundary>
               <ExplodingModel progress={progress} spread={spread} modelUrl={modelUrl} />
