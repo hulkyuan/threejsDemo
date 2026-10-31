@@ -261,7 +261,8 @@ function ExplodingModel({
       const box = new THREE.Box3().setFromObject(part.object)
       if (box.isEmpty()) return
       const center = box.getCenter(new THREE.Vector3())
-      const r = Math.max(box.getSize(new THREE.Vector3()).length() * 0.5, 0.02)
+      console.log(center)
+      const r = Math.max(box.getSize(new THREE.Vector3()).length() * 1, 0.02)//1作为视角远近系数，越小离物体越近
 
       const cam = camera as THREE.PerspectiveCamera
       const fov = ((cam.isPerspectiveCamera ? cam.fov : 45) * Math.PI) / 180
@@ -356,6 +357,7 @@ function ExplodingModel({
           controls.update()
         }
         focusRef.current = null
+        console.log('聚焦完成')
       }
     }
   })
