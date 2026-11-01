@@ -34,7 +34,7 @@ export default function Page() {
         <ModelViewer progress={progress / 100} modelUrl={modelUrl} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,rgba(8,13,23,0.08)_40%,rgba(8,13,23,0.72)_100%)]" />
 
-        <header className="absolute left-0 right-0 top-0 flex items-center justify-between px-6 py-5 md:px-10">
+        <header className="absolute left-0 right-0 top-0 flex items-center justify-between px-6 py-5 md:px-10 ">
           <div className="flex items-center gap-3">
             <div className="grid size-9 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300"><Box /></div>
             <div>
@@ -43,10 +43,10 @@ export default function Page() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <input ref={fileInputRef} type="file" accept=".glb,model/gltf-binary" onChange={handleModelSelect} className="sr-only" />
+            {/* <input ref={fileInputRef} type="file" accept=".glb,model/gltf-binary" onChange={handleModelSelect} className="sr-only" />
             <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs text-cyan-200 transition hover:bg-cyan-300/20">
               <Upload /> 选择 GLB 模型
-            </button>
+            </button> */}
             <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-slate-400 backdrop-blur md:flex">
               <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
               WebGL 实时渲染
