@@ -1,12 +1,47 @@
 'use client'
 
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bounds, Environment, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import * as THREE from 'three'
 
+/* ===========================================================================
+ * 代码内配置区（没有 UI 开关，直接改这里即可）
+ * ========================================================================= */
+
 const DEFAULT_MODEL_PATH = '/model.glb'
-const SELECT_COLOR = '#38bdf8' // 天空蓝：选中（悬停不改色，只切换鼠标指针形状）
+
+/** 结构树最多显示到第几层（第 1 层 = 模型最外层节点）。想只看 2 层就改成 2，想看 4 层就改成 4 */
+const TREE_MAX_LEVEL = 3
+
+/** 默认自动展开到第几层（节点层级 ≤ 该值时自动展开，其余手动点箭头） */
+const TREE_DEFAULT_EXPAND_LEVEL = 1
+
+/** 高亮配色的分组依据：按第几层节点分组。需求是「二级节点」，所以填 2 */
+const COLOR_GROUP_LEVEL = 2
+
+/**
+ * 预置 10 个选中高亮色。
+ * 规则：同一个二级节点下的零件选中后颜色一致；不同二级节点颜色不同；超过 10 组则循环复用。
+ */
+const SELECT_COLORS = [
+  '#38bdf8', // 0 天空蓝
+  '#f97316', // 1 橙
+  '#22c55e', // 2 绿
+  '#a855f7', // 3 紫
+  '#ef4444', // 4 红
+  '#eab308', // 5 黄
+  '#06b6d4', // 6 青
+  '#ec4899', // 7 粉
+  '#84cc16', // 8 黄绿
+  '#6366f1', // 9 靛蓝
+]
+
+const colorAt = (index: number) => SELECT_COLORS[index % SELECT_COLORS.length]
+
+/* ===========================================================================
+ * 类型
+ * ========================================================================= */
 
 type Backup = {
   color: THREE.Color
@@ -26,7 +61,9 @@ type Part = {
   triangles: number
   materials: THREE.Material[] // clone 出来的独立材质（实际挂在 mesh 上）
   backup: Backup[]
-  on: boolean | null // 当前高亮状态，null 表示尚未初始化（强制首帧应用一次）
+  on?: string | null // 当前高亮色，null = 未高亮，undefined = 尚未初始化（强制首帧应用一次）
+  chain: string[] // 自身 + 全部祖先节点 id（自身在前，根在后）
+  color: string // 选中时使用的颜色（由所属二级节点决定）
 }
 
 export type PartMeta = {
@@ -34,10 +71,40 @@ export type PartMeta = {
   name: string
   size: [number, number, number]
   triangles: number
+  chain: string[]
+  color: string
+}
+
+export type TreeNode = {
+  id: string
+  name: string
+  depth: number // 第几层，从 1 开始
+  parentId: string | null
+  childIds: string[] // 直接子节点，已按 TREE_MAX_LEVEL 裁剪
+  isMesh: boolean
+  meshCount: number // 子树网格总数
+  triangles: number // 子树三角面总数
+  partCount: number // 子树「可爆炸零件」数量
+  colorIndex: number | null // 该节点是否为配色分组（COLOR_GROUP_LEVEL 层）
+  color: string | null
+}
+
+export type ModelTree = {
+  nodes: TreeNode[] // DFS 先序：父节点一定排在子节点之前，可直接顺序遍历算继承关系
+  roots: string[] // 第一层节点 id
+  byId: Map<string, TreeNode>
+  levelCounts: number[] // 下标 = 层级 - 1
+  maxLevel: number
+}
+
+export type ModelData = {
+  parts: PartMeta[]
+  tree: ModelTree
 }
 
 export type ViewerApi = {
   focus: (id: string) => void
+  measure: (id: string) => [number, number, number] | null
 }
 
 const tmpDelta = new THREE.Vector3()
@@ -45,27 +112,39 @@ const tmpTarget = new THREE.Vector3()
 
 type OrbitLike = { target: THREE.Vector3; update: () => void; minDistance: number; maxDistance: number }
 
+function countTriangles(root: THREE.Object3D): number {
+  let total = 0
+  root.traverse((o) => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh || !m.geometry) return
+    const g = m.geometry
+    total += (g.index ? g.index.count : (g.attributes.position?.count ?? 0)) / 3
+  })
+  return Math.round(total)
+}
+
 /**
  * 关键点：不能只改 emissive。
  * - MeshBasicMaterial（glTF 的 KHR_materials_unlit）没有 emissive，改了等于没改；
  * - 场景灯光很亮时 emissive 也不够醒目。
- * 所以直接改 color（真正"变成蓝色"），emissive 只作为附加辉光。
+ * 所以直接改 color（真正"变成高亮色"），emissive 只作为附加辉光。
+ * 颜色由外部传入：同一二级节点下一致，不同二级节点不同。
  */
-function applyHighlight(part: Part, on: boolean) {
-  if (part.on === on) return // 只在状态切换时写材质
-  part.on = on
+function applyHighlight(part: Part, color: string | null) {
+  if (part.on === color) return // 只在状态切换时写材质
+  part.on = color
   part.materials.forEach((material, i) => {
     const b = part.backup[i]
     const m = material as THREE.MeshStandardMaterial
 
-    // 1) 颜色：选中变天空蓝，取消则还原（悬停不动颜色）
-    if (on) m.color.set(SELECT_COLOR)
+    // 1) 颜色：选中换成该分组的颜色，取消则还原（悬停不动颜色）
+    if (color) m.color.set(color)
     else m.color.copy(b.color)
 
     // 2) 自发光：有就用，没有（Basic 材质）就跳过
     if (m.emissive) {
-      if (on) {
-        m.emissive.set(SELECT_COLOR)
+      if (color) {
+        m.emissive.set(color)
         m.emissiveIntensity = 0.85
       } else {
         if (b.emissive) m.emissive.copy(b.emissive)
@@ -113,27 +192,31 @@ function getMeshCache(mesh: THREE.Mesh): MeshCache {
   return entry
 }
 
+/* ===========================================================================
+ * 3D 模型：爆炸 + 选中高亮 + 整层/整枝显隐
+ * ========================================================================= */
+
 function ExplodingModel({
   progress,
   spread = 1,
   modelUrl,
-  selectedId,
-  hoveredId,
-  hiddenIds,
+  highlight,
+  hiddenPartIds,
+  hiddenNodeIds,
   onSelect,
   onHover,
-  onPartsLoaded,
+  onModelLoaded,
   apiRef,
 }: {
   progress: number
   spread?: number
   modelUrl: string
-  selectedId: string | null
-  hoveredId: string | null
-  hiddenIds: Set<string>
+  highlight: Map<string, string> // 零件 id → 高亮色
+  hiddenPartIds: Set<string> // 被隐藏的零件（含祖先被隐藏的）
+  hiddenNodeIds: Set<string> // 实际被隐藏的结构树节点（含继承父级隐藏的）
   onSelect: (id: string | null) => void
   onHover: (id: string | null) => void
-  onPartsLoaded: (parts: PartMeta[]) => void
+  onModelLoaded: (data: ModelData) => void
   apiRef: React.MutableRefObject<ViewerApi | null>
 }) {
   const { scene } = useGLTF(modelUrl)
@@ -144,16 +227,18 @@ function ExplodingModel({
   const controls = useThree((s) => s.controls) as unknown as OrbitLike | null
 
   // 高亮/显隐同步在 useFrame 里做，用 ref 读取最新值，避免任何 effect 时序问题
-  const selectedRef = useRef<string | null>(selectedId)
-  const hoveredRef = useRef<string | null>(hoveredId)
-  const hiddenRef = useRef<Set<string>>(hiddenIds)
+  const highlightRef = useRef(highlight)
+  const hiddenPartRef = useRef(hiddenPartIds)
+  const hiddenNodeRef = useRef(hiddenNodeIds)
+  const hoveredRef = useRef<string | null>(null)
+  const appliedHiddenRef = useRef<Set<string> | null>(null)
   useEffect(() => {
-    selectedRef.current = selectedId
-    hoveredRef.current = hoveredId
-    hiddenRef.current = hiddenIds
-  }, [selectedId, hoveredId, hiddenIds])
+    highlightRef.current = highlight
+    hiddenPartRef.current = hiddenPartIds
+    hiddenNodeRef.current = hiddenNodeIds
+  }, [highlight, hiddenPartIds, hiddenNodeIds])
 
-  const { parts, lookup } = useMemo(() => {
+  const model = useMemo(() => {
     scene.updateMatrixWorld(true)
 
     // 1) 爆炸中心 = 模型整体包围盒中心，并把它搬到原点（该操作是幂等的，重复执行无副作用）
@@ -164,7 +249,54 @@ function ExplodingModel({
     scene.position.sub(center)
     scene.updateMatrixWorld(true)
 
-    // 2) 只移动「顶层」mesh，避免父子嵌套导致位移叠加漂移
+    /* ---------------------------------------------------------------------
+     * 2) 结构树：直接按 glTF 的节点层级生成，深度从 1 开始
+     *    - childIds 会按 TREE_MAX_LEVEL 裁剪，超出层级的节点不再单独成行，
+     *      但仍属于最近的可见祖先（隐藏祖先时它们一起隐藏）
+     * ------------------------------------------------------------------- */
+    const nodes: TreeNode[] = []
+    const byId = new Map<string, TreeNode>()
+    const objects = new Map<string, THREE.Object3D>()
+    const depthOf = new Map<THREE.Object3D, number>()
+    let anonymous = 0
+
+    const walk = (obj: THREE.Object3D, depth: number, parentId: string | null): TreeNode => {
+      const isMesh = (obj as THREE.Mesh).isMesh === true
+      const rawName = (obj.name || '').trim()
+      const node: TreeNode = {
+        id: obj.uuid,
+        name: rawName || `${isMesh ? '零件' : '组'} ${++anonymous}`,
+        depth,
+        parentId,
+        childIds: [],
+        isMesh,
+        meshCount: isMesh ? 1 : 0,
+        triangles: isMesh ? countTriangles(obj) : 0,
+        partCount: 0,
+        colorIndex: null,
+        color: null,
+      }
+      nodes.push(node)
+      byId.set(node.id, node)
+      objects.set(node.id, obj)
+      depthOf.set(obj, depth)
+
+      for (const child of obj.children) {
+        const c = walk(child, depth + 1, node.id)
+        if (c.depth <= TREE_MAX_LEVEL) node.childIds.push(c.id) // 超过配置层级的不再展开成行
+        node.meshCount += c.meshCount
+        node.triangles += c.triangles
+      }
+      return node
+    }
+
+    const roots: string[] = []
+    for (const child of scene.children) roots.push(walk(child, 1, null).id)
+
+    const levelCounts: number[] = []
+    for (const n of nodes) levelCounts[n.depth - 1] = (levelCounts[n.depth - 1] ?? 0) + 1
+
+    // 3) 只移动「顶层」mesh，避免父子嵌套导致位移叠加漂移
     const meshes: THREE.Mesh[] = []
     scene.traverse((child) => {
       const mesh = child as THREE.Mesh
@@ -183,8 +315,19 @@ function ExplodingModel({
       if (!nested) meshes.push(mesh)
     })
 
+    // 配色分组：按 COLOR_GROUP_LEVEL 层节点分组，出现的先后顺序决定颜色序号
+    const colorIndex = new Map<string, number>()
+    const colorIndexOf = (key: string) => {
+      let i = colorIndex.get(key)
+      if (i === undefined) {
+        i = colorIndex.size
+        colorIndex.set(key, i)
+      }
+      return i
+    }
+
     const list: Part[] = meshes.map((mesh, i) => {
-      // 3) 方向来自「零件自身的世界包围盒中心」，而不是节点原点
+      // 4) 方向来自「零件自身的世界包围盒中心」，而不是节点原点
       const meshBox = new THREE.Box3().setFromObject(mesh)
       const meshCenter = meshBox.isEmpty()
         ? mesh.getWorldPosition(new THREE.Vector3())
@@ -200,19 +343,30 @@ function ExplodingModel({
       }
       axis.normalize()
 
-      // 4) 缓存父级世界矩阵的逆（只取旋转/缩放），位移换算不受父级实时变换影响
+      // 5) 缓存父级世界矩阵的逆（只取旋转/缩放），位移换算不受父级实时变换影响
       const toLocal = new THREE.Matrix3()
       if (mesh.parent) toLocal.setFromMatrix4(mesh.parent.matrixWorld).invert()
 
       const cache = getMeshCache(mesh)
 
-      let triangles = 0
-      mesh.traverse((o) => {
-        const m = o as THREE.Mesh
-        if (!m.isMesh || !m.geometry) return
-        const g = m.geometry
-        triangles += (g.index ? g.index.count : (g.attributes.position?.count ?? 0)) / 3
-      })
+      // 6) 祖先链（自身 → 根），用于整层/整枝显隐与选中归属
+      const chain: string[] = []
+      let cur: THREE.Object3D | null = mesh
+      while (cur) {
+        if (depthOf.has(cur)) chain.push(cur.uuid)
+        cur = cur.parent
+      }
+
+      // 7) 取链上第 COLOR_GROUP_LEVEL 层的祖先作为配色 key；
+      //    模型不足该层级时退化为最外层祖先（一级节点）
+      let colorKey = chain[0]
+      for (let k = chain.length - 1; k >= 0; k--) {
+        const n = byId.get(chain[k])
+        if (n && n.depth === COLOR_GROUP_LEVEL) {
+          colorKey = n.id
+          break
+        }
+      }
 
       const name = (mesh.name && mesh.name.trim()) || mesh.parent?.name || `零件 ${i + 1}`
 
@@ -225,44 +379,81 @@ function ExplodingModel({
         toLocal,
         distance: radius * (0.35 + Math.random() * 0.25),
         size: meshBox.getSize(new THREE.Vector3()),
-        triangles: Math.round(triangles),
+        triangles: countTriangles(mesh),
         materials: cache.materials,
         backup: cache.backup,
-        on: null, // 强制首帧应用一次
+        chain,
+        color: colorAt(colorIndexOf(colorKey)),
+        on: undefined, // 强制首帧应用一次
       }
     })
+
+    // 把分组配色回写到对应节点，供结构树显示色点
+    colorIndex.forEach((idx, id) => {
+      const n = byId.get(id)
+      if (n) {
+        n.colorIndex = idx
+        n.color = colorAt(idx)
+      }
+    })
+
+    // 每个节点的「子树零件数」
+    for (const p of list) {
+      for (const id of p.chain) {
+        const n = byId.get(id)
+        if (n) n.partCount += 1
+      }
+    }
 
     // 任意子网格 → 顶层零件
     const map = new Map<THREE.Object3D, Part>()
     list.forEach((p) => p.object.traverse((o) => map.set(o, p)))
 
-    return { parts: list, lookup: map }
+    const nodeItems = nodes.map((n) => ({ id: n.id, object: objects.get(n.id) as THREE.Object3D }))
+    const tree: ModelTree = { nodes, roots, byId, levelCounts, maxLevel: TREE_MAX_LEVEL }
+
+    return { parts: list, lookup: map, tree, nodeItems, objects }
   }, [scene])
 
-  // 零件元数据上报给外层信息面板
-  useEffect(() => {
-    onPartsLoaded(
+  const { parts, lookup, tree, nodeItems, objects } = model
+
+  // 零件元数据 + 结构树上报给外层面板
+  const metas = useMemo<PartMeta[]>(
+    () =>
       parts.map((p) => ({
         id: p.id,
         name: p.name,
         size: [p.size.x, p.size.y, p.size.z],
         triangles: p.triangles,
+        chain: p.chain,
+        color: p.color,
       })),
-    )
-  }, [parts, onPartsLoaded])
+    [parts],
+  )
+
+  useEffect(() => {
+    onModelLoaded({ parts: metas, tree })
+  }, [metas, tree, onModelLoaded])
 
   const focusRef = useRef<{ target: THREE.Vector3; position: THREE.Vector3; minDistance: number } | null>(null)
 
+  const boxOf = useCallback(
+    (id: string) => {
+      const obj = objects.get(id)
+      if (!obj) return null
+      scene.updateMatrixWorld(true)
+      const box = new THREE.Box3().setFromObject(obj)
+      return box.isEmpty() ? null : box
+    },
+    [objects, scene],
+  )
+
   const focus = useCallback(
     (id: string) => {
-      const part = parts.find((p) => p.id === id)
-      if (!part || !part.object.visible) return
-      scene.updateMatrixWorld(true)
-      const box = new THREE.Box3().setFromObject(part.object)
-      if (box.isEmpty()) return
+      const box = boxOf(id)
+      if (!box) return
       const center = box.getCenter(new THREE.Vector3())
-      console.log(center)
-      const r = Math.max(box.getSize(new THREE.Vector3()).length() * 1, 0.02)//1作为视角远近系数，越小离物体越近
+      const r = Math.max(box.getSize(new THREE.Vector3()).length() * 1, 0.02) // 1 作为视角远近系数，越小离物体越近
 
       const cam = camera as THREE.PerspectiveCamera
       const fov = ((cam.isPerspectiveCamera ? cam.fov : 45) * Math.PI) / 180
@@ -280,21 +471,31 @@ function ExplodingModel({
         minDistance: Math.min(0.2, dist * 0.4),
       }
     },
-    [parts, camera, controls, scene],
+    [boxOf, camera, controls],
+  )
+
+  const measure = useCallback(
+    (id: string) => {
+      const box = boxOf(id)
+      if (!box) return null
+      const s = box.getSize(new THREE.Vector3())
+      return [s.x, s.y, s.z] as [number, number, number]
+    },
+    [boxOf],
   )
 
   useEffect(() => {
-    apiRef.current = { focus }
+    apiRef.current = { focus, measure }
     return () => {
       apiRef.current = null
     }
-  }, [apiRef, focus])
+  }, [apiRef, focus, measure])
 
   const pick = useCallback(
     (e: ThreeEvent<PointerEvent | MouseEvent>) => {
       const part = lookup.get(e.object)
       // three 的 Raycaster 不会检查 visible，隐藏的零件要手动过滤
-      if (!part || !part.object.visible) return null
+      if (!part || hiddenPartRef.current.has(part.id)) return null
       return part
     },
     [lookup],
@@ -305,7 +506,8 @@ function ExplodingModel({
       const part = pick(e)
       if (!part) return
       e.stopPropagation()
-      onSelect(part.id === selectedRef.current ? null : part.id)
+      // 再点一次同一个零件就取消选中（父级 handleSelect 里做幂等判断）
+      onSelect(part.id)
     },
     [pick, onSelect],
   )
@@ -315,30 +517,52 @@ function ExplodingModel({
     (e: ThreeEvent<PointerEvent>) => {
       const part = pick(e)
       const id = part ? part.id : null
-      if (id !== hoveredRef.current) onHover(id)
+      if (id !== hoveredRef.current) {
+        hoveredRef.current = id
+        onHover(id)
+      }
     },
     [pick, onHover],
   )
 
-  const handleOut = useCallback(() => onHover(null), [onHover])
+  const handleOut = useCallback(() => {
+    hoveredRef.current = null
+    onHover(null)
+  }, [onHover])
+
+  // 换了模型要强制重新写一遍节点可见性
+  useEffect(() => {
+    appliedHiddenRef.current = null
+  }, [model])
 
   useFrame(() => {
     const t = progressRef.current
-    const selId = selectedRef.current
-    const hidden = hiddenRef.current
+    const hl = highlightRef.current
+    const hiddenParts = hiddenPartRef.current
+    const hiddenNodes = hiddenNodeRef.current
 
     for (const part of parts) {
-      // 高亮：只有「选中」才变色；悬停不改颜色（每帧对齐一次，绝不依赖 effect 时序）
-      applyHighlight(part, part.id === selId)
+      // 高亮：只有「选中」才变色，颜色按二级节点分组；悬停不改颜色
+      applyHighlight(part, hl.get(part.id) ?? null)
 
-      // 显隐
-      const visible = !hidden.has(part.id)
+      // 零件自身的可见性（整体由节点可见性控制，这里仅兜底）
+      const visible = !hiddenParts.has(part.id)
       if (part.object.visible !== visible) part.object.visible = visible
 
       // 爆炸位移
       tmpDelta.copy(part.axis).multiplyScalar(part.distance * t * spread).applyMatrix3(part.toLocal)
       tmpTarget.copy(part.home).add(tmpDelta)
       part.object.position.lerp(tmpTarget, 0.16) // 想严格跟随滑杆就改成 copy(tmpTarget)
+    }
+
+    // 结构树节点显隐：父节点隐藏时，three 会自动隐藏整棵子树，所以只需写每个节点自己的 visible
+    // 集合是父级 useMemo 出来的新对象，用引用比较避免每帧遍历
+    if (appliedHiddenRef.current !== hiddenNodes) {
+      appliedHiddenRef.current = hiddenNodes
+      for (const item of nodeItems) {
+        const v = !hiddenNodes.has(item.id)
+        if (item.object.visible !== v) item.object.visible = v
+      }
     }
 
     // 聚焦动画：同时插值相机与 OrbitControls 的 target
@@ -357,13 +581,253 @@ function ExplodingModel({
           controls.update()
         }
         focusRef.current = null
-        console.log('聚焦完成')
       }
     }
   })
 
   return <primitive object={scene} onClick={handleClick} onPointerMove={handleMove} onPointerOut={handleOut} />
 }
+
+/* ===========================================================================
+ * 图标
+ * ========================================================================= */
+
+function EyeIcon({ off = false }: { off?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-3.5 w-3.5"
+    >
+      <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.7" />
+      {off && <path d="M4 20 20 4" />}
+    </svg>
+  )
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`h-3 w-3 transition-transform ${open ? 'rotate-90' : ''}`}
+    >
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
+/* ===========================================================================
+ * 结构树面板
+ * ========================================================================= */
+
+type TreeRowProps = {
+  tree: ModelTree
+  hiddenNodes: Set<string>
+  selectedId: string | null
+  isExpanded: (node: TreeNode) => boolean
+  onToggleExpand: (id: string) => void
+  onSelect: (id: string) => void
+  onToggleNode: (id: string) => void
+}
+
+function TreeRows({
+  tree,
+  parentId,
+  hiddenNodes,
+  selectedId,
+  isExpanded,
+  onToggleExpand,
+  onSelect,
+  onToggleNode,
+}: TreeRowProps & { parentId: string | null }) {
+  const ids = parentId ? (tree.byId.get(parentId)?.childIds ?? []) : tree.roots
+
+  return (
+    <>
+      {ids.map((id) => {
+        const node = tree.byId.get(id)
+        if (!node) return null
+
+        const expandable = node.childIds.length > 0
+        const open = expandable && isExpanded(node)
+        const hidden = hiddenNodes.has(node.id)
+        const active = selectedId === node.id
+
+        return (
+          <Fragment key={node.id}>
+            <div
+              className={`flex items-center gap-1 rounded-md py-[3px] pr-1 ${
+                active ? 'bg-sky-500/15' : 'hover:bg-white/5'
+              }`}
+              style={{ paddingLeft: (node.depth - 1) * 12 + 2 }}
+            >
+              {expandable ? (
+                <button
+                  onClick={() => onToggleExpand(node.id)}
+                  className="grid h-4 w-4 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
+                  title={open ? '折叠' : '展开'}
+                >
+                  <ChevronIcon open={open} />
+                </button>
+              ) : (
+                <span className="h-4 w-4 shrink-0" />
+              )}
+
+              <button
+                onClick={() => onSelect(node.id)}
+                className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                title={node.name}
+              >
+                {node.color && (
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full ring-1 ring-white/25"
+                    style={{ background: node.color }}
+                    title={`选中色 ${node.color}`}
+                  />
+                )}
+                <span
+                  className={`truncate text-[13px] ${
+                    active ? 'text-sky-300' : hidden ? 'text-slate-500 line-through' : 'text-slate-200'
+                  }`}
+                >
+                  {node.name}
+                </span>
+                <span className="shrink-0 text-[10px] text-slate-500">{node.meshCount}</span>
+              </button>
+
+              <button
+                onClick={() => onToggleNode(node.id)}
+                className={`shrink-0 rounded p-1 transition ${
+                  hidden ? 'text-amber-300/90 hover:bg-white/10' : 'text-slate-500 hover:bg-white/10 hover:text-slate-200'
+                }`}
+                title={hidden ? '显示该节点' : '隐藏该节点'}
+              >
+                <EyeIcon off={hidden} />
+              </button>
+            </div>
+
+            {open && (
+              <TreeRows
+                tree={tree}
+                parentId={node.id}
+                hiddenNodes={hiddenNodes}
+                selectedId={selectedId}
+                isExpanded={isExpanded}
+                onToggleExpand={onToggleExpand}
+                onSelect={onSelect}
+                onToggleNode={onToggleNode}
+              />
+            )}
+          </Fragment>
+        )
+      })}
+    </>
+  )
+}
+
+function StructurePanel({
+  tree,
+  hiddenNodes,
+  hiddenLevels,
+  hiddenPartCount,
+  selectedId,
+  isExpanded,
+  onToggleExpand,
+  onSelect,
+  onToggleNode,
+  onToggleLevel,
+  onShowAll,
+}: {
+  tree: ModelTree
+  hiddenNodes: Set<string>
+  hiddenLevels: Set<number>
+  hiddenPartCount: number
+  selectedId: string | null
+  isExpanded: (node: TreeNode) => boolean
+  onToggleExpand: (id: string) => void
+  onSelect: (id: string) => void
+  onToggleNode: (id: string) => void
+  onToggleLevel: (level: number) => void
+  onShowAll: () => void
+}) {
+  const levels = useMemo(() => Array.from({ length: tree.maxLevel }, (_, i) => i + 1), [tree.maxLevel])
+
+  return (
+    <div className="pointer-events-auto absolute left-4 top-4 flex max-h-[calc(100%-2rem)] w-80 flex-col rounded-xl border border-white/10 bg-slate-900/80 p-3 text-sm text-slate-200 shadow-2xl backdrop-blur">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <div className="font-medium">模型结构</div>
+        <div className="text-[11px] text-slate-500">
+          {tree.nodes.length} 节点 · 显示 {tree.maxLevel} 层
+        </div>
+      </div>
+
+      {/* 整层显示 / 隐藏 */}
+      <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-white/10 pb-2">
+        {levels.map((lv) => {
+          const off = hiddenLevels.has(lv)
+          return (
+            <button
+              key={lv}
+              onClick={() => onToggleLevel(lv)}
+              title={`${off ? '显示' : '隐藏'}第 ${lv} 层的全部节点`}
+              className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition ${
+                off
+                  ? 'border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20'
+                  : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <EyeIcon off={off} />
+              第 {lv} 层 · {tree.levelCounts[lv - 1] ?? 0}
+            </button>
+          )
+        })}
+        {hiddenPartCount > 0 && (
+          <button
+            onClick={onShowAll}
+            className="ml-auto rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-300 transition hover:bg-white/10"
+          >
+            全部显示
+          </button>
+        )}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        {tree.roots.length === 0 ? (
+          <div className="px-1 py-2 text-xs text-slate-500">模型没有可展示的节点</div>
+        ) : (
+          <TreeRows
+            tree={tree}
+            parentId={null}
+            hiddenNodes={hiddenNodes}
+            selectedId={selectedId}
+            isExpanded={isExpanded}
+            onToggleExpand={onToggleExpand}
+            onSelect={onSelect}
+            onToggleNode={onToggleNode}
+          />
+        )}
+      </div>
+
+      {/* <div className="mt-2 border-t border-white/10 pt-2 text-[11px] text-slate-500">
+        选中色按第 {COLOR_GROUP_LEVEL} 层节点分组（{SELECT_COLORS.length} 色循环）
+      </div> */}
+    </div>
+  )
+}
+
+/* ===========================================================================
+ * 其它 UI
+ * ========================================================================= */
 
 // 兜底模型：model.glb 加载失败时会显示它，这里也让它支持选中，方便验证交互链路
 function DemoAssembly({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string | null) => void }) {
@@ -391,8 +855,8 @@ function DemoAssembly({ selectedId, onSelect }: { selectedId: string | null; onS
           >
             <boxGeometry args={[1, 1, 1]} />
             <meshStandardMaterial
-              color={active ? SELECT_COLOR : index % 2 ? '#38bdf8' : '#dbeafe'}
-              emissive={active ? SELECT_COLOR : '#000000'}
+              color={active ? colorAt(index) : index % 2 ? '#38bdf8' : '#dbeafe'}
+              emissive={active ? colorAt(index) : '#000000'}
               emissiveIntensity={active ? 0.8 : 0}
               metalness={0.5}
               roughness={0.25}
@@ -448,8 +912,19 @@ function LoadingOverlay() {
   )
 }
 
+type SelectionInfo = {
+  id: string
+  name: string
+  level: number
+  meshCount: number
+  triangles: number
+  partCount: number
+  size: [number, number, number] | null
+  color: string | null
+}
+
 function InfoPanel({
-  meta,
+  info,
   hidden,
   onToggleVisible,
   onFocus,
@@ -457,7 +932,7 @@ function InfoPanel({
   onShowAll,
   hiddenCount,
 }: {
-  meta: PartMeta | null
+  info: SelectionInfo | null
   hidden: boolean
   onToggleVisible: () => void
   onFocus: () => void
@@ -467,16 +942,16 @@ function InfoPanel({
 }) {
   return (
     <div className="pointer-events-auto absolute right-4 top-4 w-72 rounded-xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-200 shadow-2xl backdrop-blur">
-      {!meta ? (
+      {!info ? (
         <div className="text-slate-400">
-          <div className="mb-1 font-medium text-slate-200">零件信息</div>
-          <div>点击模型上的任意零件查看详情</div>
+          <div className="mb-1 font-medium text-slate-200">节点信息</div>
+          <div>点击模型或左侧结构树的任意节点查看详情</div>
           {hiddenCount > 0 && (
             <button
               onClick={onShowAll}
               className="mt-3 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200 transition hover:bg-white/10"
             >
-              全部显示（已隐藏 {hiddenCount}）
+              全部显示（已隐藏 {hiddenCount} 个零件）
             </button>
           )}
         </div>
@@ -484,9 +959,14 @@ function InfoPanel({
         <div>
           <div className="mb-3 flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="mb-0.5 text-xs uppercase tracking-wide text-slate-500">当前选中</div>
-              <div className="truncate text-base font-semibold text-sky-300" title={meta.name}>
-                {meta.name}
+              <div className="mb-0.5 text-xs uppercase tracking-wide text-slate-500">当前选中 · 第 {info.level} 层</div>
+              <div className="flex items-center gap-1.5">
+                {info.color && (
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/25" style={{ background: info.color }} />
+                )}
+                <div className="truncate text-base font-semibold text-sky-300" title={info.name}>
+                  {info.name}
+                </div>
               </div>
             </div>
             <span
@@ -501,11 +981,21 @@ function InfoPanel({
           <dl className="mb-4 space-y-1.5 text-xs text-slate-400">
             <div className="flex justify-between gap-2">
               <dt>尺寸</dt>
-              <dd className="text-slate-200">{meta.size.map((n) => n.toFixed(2)).join(' × ')}</dd>
+              <dd className="text-slate-200">
+                {info.size ? info.size.map((n) => n.toFixed(2)).join(' × ') : '—'}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>网格数</dt>
+              <dd className="text-slate-200">{info.meshCount.toLocaleString()}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt>三角面数</dt>
-              <dd className="text-slate-200">{meta.triangles.toLocaleString()}</dd>
+              <dd className="text-slate-200">{info.triangles.toLocaleString()}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>包含零件</dt>
+              <dd className="text-slate-200">{info.partCount.toLocaleString()}</dd>
             </div>
           </dl>
 
@@ -536,6 +1026,10 @@ function InfoPanel({
   )
 }
 
+/* ===========================================================================
+ * 对外组件
+ * ========================================================================= */
+
 export function ModelViewer({
   progress,
   modelUrl = DEFAULT_MODEL_PATH,
@@ -546,22 +1040,125 @@ export function ModelViewer({
   spread?: number
 }) {
   const [parts, setParts] = useState<PartMeta[]>([])
+  const [tree, setTree] = useState<ModelTree | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
+  const [hiddenNodeIds, setHiddenNodeIds] = useState<Set<string>>(() => new Set()) // 手动隐藏的节点
+  const [hiddenLevels, setHiddenLevels] = useState<Set<number>>(() => new Set()) // 整层隐藏
+  const [expandOverride, setExpandOverride] = useState<Record<string, boolean>>({})
+  const [selectedSize, setSelectedSize] = useState<[number, number, number] | null>(null)
   const apiRef = useRef<ViewerApi | null>(null)
 
-  const onPartsLoaded = useCallback((list: PartMeta[]) => setParts(list), [])
+  const onModelLoaded = useCallback((data: ModelData) => {
+    setParts(data.parts)
+    setTree(data.tree)
+    setSelectedId(null)
+    setHiddenNodeIds(new Set())
+    setHiddenLevels(new Set())
+    setExpandOverride({})
+    setSelectedSize(null)
+  }, [])
 
-  const selected = useMemo(() => parts.find((p) => p.id === selectedId) ?? null, [parts, selectedId])
+  /* ---- 派生状态 ---- */
 
-  const toggleVisible = useCallback((id: string) => {
-    setHiddenIds((prev) => {
+  // 实际被隐藏的节点：整层隐藏 / 手动隐藏 / 祖先被隐藏
+  const hiddenNodes = useMemo(() => {
+    const set = new Set<string>()
+    if (!tree) return set
+    for (const node of tree.nodes) {
+      // nodes 是 DFS 先序，父节点一定先算完
+      if (hiddenLevels.has(node.depth) || hiddenNodeIds.has(node.id) || (node.parentId && set.has(node.parentId))) {
+        set.add(node.id)
+      }
+    }
+    return set
+  }, [tree, hiddenLevels, hiddenNodeIds])
+
+  // 被隐藏的零件：祖先链上任意节点被隐藏即隐藏
+  const hiddenPartIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const p of parts) {
+      if (p.chain.some((id) => hiddenNodes.has(id))) set.add(p.id)
+    }
+    return set
+  }, [parts, hiddenNodes])
+
+  // 选中节点 → 其下所有零件的高亮色（颜色由各自的二级节点决定）
+  const highlight = useMemo(() => {
+    const map = new Map<string, string>()
+    if (!selectedId) return map
+    for (const p of parts) {
+      if (p.chain.includes(selectedId)) map.set(p.id, p.color)
+    }
+    return map
+  }, [parts, selectedId])
+
+  const selectedNode = useMemo(() => (selectedId && tree ? tree.byId.get(selectedId) ?? null : null), [selectedId, tree])
+
+  const selectionInfo = useMemo<SelectionInfo | null>(() => {
+    if (!selectedNode) return null
+    return {
+      id: selectedNode.id,
+      name: selectedNode.name,
+      level: selectedNode.depth,
+      meshCount: selectedNode.meshCount,
+      triangles: selectedNode.triangles,
+      partCount: selectedNode.partCount,
+      size: selectedSize,
+      color: selectedNode.color ?? highlight.values().next().value ?? null,
+    }
+  }, [selectedNode, selectedSize, highlight])
+
+  // 选中变化时量一次包围盒尺寸
+  useEffect(() => {
+    if (!selectedId || !tree) {
+      setSelectedSize(null)
+      return
+    }
+    setSelectedSize(apiRef.current?.measure(selectedId) ?? null)
+  }, [selectedId, tree])
+
+  /* ---- 交互 ---- */
+
+  const toggleNodeVisible = useCallback((id: string) => {
+    setHiddenNodeIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
+  }, [])
+
+  const toggleLevel = useCallback((level: number) => {
+    setHiddenLevels((prev) => {
+      const next = new Set(prev)
+      if (next.has(level)) next.delete(level)
+      else next.add(level)
+      return next
+    })
+  }, [])
+
+  const showAll = useCallback(() => {
+    setHiddenNodeIds(new Set())
+    setHiddenLevels(new Set())
+  }, [])
+
+  const toggleExpand = useCallback(
+    (id: string) => {
+      const node = tree?.byId.get(id)
+      const current = node ? (expandOverride[id] ?? node.depth <= TREE_DEFAULT_EXPAND_LEVEL) : false
+      setExpandOverride((prev) => ({ ...prev, [id]: !current }))
+    },
+    [tree, expandOverride],
+  )
+
+  const isExpanded = useCallback(
+    (node: TreeNode) => expandOverride[node.id] ?? node.depth <= TREE_DEFAULT_EXPAND_LEVEL,
+    [expandOverride],
+  )
+
+  const handleSelect = useCallback((id: string | null) => {
+    setSelectedId((prev) => (id && id === prev ? null : id))
   }, [])
 
   // 悬停到零件上时变成小手
@@ -593,17 +1190,17 @@ export function ModelViewer({
         </Suspense>
         <Suspense fallback={null}>
           <Bounds fit clip observe margin={1.4}>
-            <ModelErrorBoundary selectedId={selectedId} onSelect={setSelectedId}>
+            <ModelErrorBoundary selectedId={selectedId} onSelect={handleSelect}>
               <ExplodingModel
                 progress={progress}
                 spread={spread}
                 modelUrl={modelUrl}
-                selectedId={selectedId}
-                hoveredId={hoveredId}
-                hiddenIds={hiddenIds}
-                onSelect={setSelectedId}
+                highlight={highlight}
+                hiddenPartIds={hiddenPartIds}
+                hiddenNodeIds={hiddenNodes}
+                onSelect={handleSelect}
                 onHover={setHoveredId}
-                onPartsLoaded={onPartsLoaded}
+                onModelLoaded={onModelLoaded}
                 apiRef={apiRef}
               />
             </ModelErrorBoundary>
@@ -615,14 +1212,30 @@ export function ModelViewer({
       <LoadingOverlay />
 
       <div className="pointer-events-none absolute inset-0">
+        {tree && (
+          <StructurePanel
+            tree={tree}
+            hiddenNodes={hiddenNodes}
+            hiddenLevels={hiddenLevels}
+            hiddenPartCount={hiddenPartIds.size}
+            selectedId={selectedId}
+            isExpanded={isExpanded}
+            onToggleExpand={toggleExpand}
+            onSelect={handleSelect}
+            onToggleNode={toggleNodeVisible}
+            onToggleLevel={toggleLevel}
+            onShowAll={showAll}
+          />
+        )}
+
         <InfoPanel
-          meta={selected}
-          hidden={selectedId ? hiddenIds.has(selectedId) : false}
-          onToggleVisible={() => selectedId && toggleVisible(selectedId)}
+          info={selectionInfo}
+          hidden={selectedId ? hiddenNodes.has(selectedId) : false}
+          onToggleVisible={() => selectedId && toggleNodeVisible(selectedId)}
           onFocus={() => selectedId && apiRef.current?.focus(selectedId)}
           onClear={() => setSelectedId(null)}
-          onShowAll={() => setHiddenIds(new Set())}
-          hiddenCount={hiddenIds.size}
+          onShowAll={showAll}
+          hiddenCount={hiddenPartIds.size}
         />
       </div>
     </div>
