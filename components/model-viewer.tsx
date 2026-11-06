@@ -9,7 +9,7 @@ import * as THREE from 'three'
  * 代码内配置区（没有 UI 开关，直接改这里即可）
  * ========================================================================= */
 
-const DEFAULT_MODEL_PATH = '/model.glb'
+const DEFAULT_MODEL_PATH = '/demomodel.glb'
 
 /** 结构树最多显示到第几层（第 1 层 = 模型最外层节点）。想只看 2 层就改成 2，想看 4 层就改成 4 */
 const TREE_MAX_LEVEL = 3
@@ -222,7 +222,6 @@ function ExplodingModel({
   const { scene } = useGLTF(modelUrl)
   const progressRef = useRef(progress)
   progressRef.current = progress
-
   const camera = useThree((s) => s.camera)
   const controls = useThree((s) => s.controls) as unknown as OrbitLike | null
 
@@ -1034,10 +1033,13 @@ export function ModelViewer({
   progress,
   modelUrl = DEFAULT_MODEL_PATH,
   spread = 1,
+  highlightNameFilter,
 }: {
   progress: number
   modelUrl?: string
   spread?: number
+  /** 外部高亮：按零件名子串匹配（忽略大小写），供步骤引擎驱动 */
+  highlightNameFilter?: string[]
 }) {
   const [parts, setParts] = useState<PartMeta[]>([])
   const [tree, setTree] = useState<ModelTree | null>(null)
@@ -1092,6 +1094,25 @@ export function ModelViewer({
     }
     return map
   }, [parts, selectedId])
+
+  // 步骤引擎驱动的名称匹配高亮：与选中高亮叠加（选中优先级更高，不覆盖已有色）
+  const stepHighlight = useMemo(() => {
+    if (!highlightNameFilter || highlightNameFilter.length === 0) return null
+    const patterns = highlightNameFilter.map((s) => s.toLowerCase())
+    const map = new Map<string, string>()
+    for (const p of parts) {
+      const name = p.name.toLowerCase()
+      if (patterns.some((k) => name.includes(k))) map.set(p.id, '#38bdf8')
+    }
+    return map
+  }, [highlightNameFilter, parts])
+
+  const mergedHighlight = useMemo(() => {
+    if (!stepHighlight) return highlight
+    const merged = new Map(stepHighlight)
+    for (const [k, v] of highlight) merged.set(k, v)
+    return merged
+  }, [highlight, stepHighlight])
 
   const selectedNode = useMemo(() => (selectedId && tree ? tree.byId.get(selectedId) ?? null : null), [selectedId, tree])
 
@@ -1195,7 +1216,7 @@ export function ModelViewer({
                 progress={progress}
                 spread={spread}
                 modelUrl={modelUrl}
-                highlight={highlight}
+                highlight={mergedHighlight}
                 hiddenPartIds={hiddenPartIds}
                 hiddenNodeIds={hiddenNodes}
                 onSelect={handleSelect}

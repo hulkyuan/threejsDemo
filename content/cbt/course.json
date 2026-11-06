@@ -1,0 +1,42 @@
+{
+  "id": "psd-cbt",
+  "title": "PSD 平台屏蔽门计算机辅助培训（CBT）",
+  "version": "0.1.0",
+  "totalHours": 20,
+  "modules": [
+    {
+      "id": "m01",
+      "index": 1,
+      "title": "平台式全高与半高平开门简介",
+      "titleEn": "Introduction to full-height and half-height sliding door systems",
+      "systemType": "both",
+      "summary": "认识全高与半高 PSD 系统的组成、功能定位与典型布置。",
+      "lessons": [
+        { "id": "l01", "title": "PSD 系统概述（3D 巡览）", "kind": "scenario", "durationMin": 40, "ref": "psd-overview" },
+        { "id": "l02", "title": "全高 vs 半高：结构与差异", "kind": "doc", "durationMin": 30, "ref": "/docs/full-vs-half" },
+        { "id": "l03", "title": "模块 1 评估", "kind": "quiz", "durationMin": 20 }
+      ]
+    },
+    { "id": "m02", "index": 2, "title": "全高与半高 PSD 系统架构", "titleEn": "System architecture", "systemType": "both", "lessons": [{ "id": "l01", "title": "系统架构 3D 拆解", "kind": "scenario", "durationMin": 45, "ref": "psd-architecture" }, { "id": "l02", "title": "模块 2 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m03", "index": 3, "title": "ASD、EED、PED、FD 等部件及组件详解", "titleEn": "Components: ASD / EED / PED / FD", "systemType": "both", "lessons": [{ "id": "l01", "title": "部件识别与功能（3D 交互）", "kind": "scenario", "durationMin": 60, "ref": "psd-components" }, { "id": "l02", "title": "模块 3 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m04", "index": 4, "title": "带信号的门开/关顺序", "titleEn": "Door open/close sequence with signals", "systemType": "both", "lessons": [{ "id": "l01", "title": "开关门时序演练", "kind": "scenario", "durationMin": 45, "ref": "door-cycle" }, { "id": "l02", "title": "模块 4 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m05", "index": 5, "title": "机车车辆（列车）至 PSD 接口", "titleEn": "Train-to-PSD interface", "systemType": "both", "lessons": [{ "id": "l01", "title": "列车-PSD 接口原理（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/train-interface" }, { "id": "l02", "title": "模块 5 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m06", "index": 6, "title": "向 PSD 接口发送信号及反向操作", "titleEn": "PSD signalling", "systemType": "both", "lessons": [{ "id": "l01", "title": "信号链路（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/signalling" }, { "id": "l02", "title": "模块 6 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m07", "index": 7, "title": "与电信系统（FOTS、主时钟等）及 UPS 系统的 PSD 接口", "titleEn": "Telecom & UPS interfaces", "systemType": "both", "lessons": [{ "id": "l01", "title": "接口配置（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/telecom-ups" }, { "id": "l02", "title": "模块 7 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m08", "index": 8, "title": "平台层级的 PSD 组件/齿轮", "titleEn": "Platform level PSD components", "systemType": "both", "lessons": [{ "id": "l01", "title": "平台层组件 3D 巡览", "kind": "scenario", "durationMin": 45, "ref": "psd-components" }, { "id": "l02", "title": "模块 8 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m09", "index": 9, "title": "本地站控层 PSD 组件/齿轮", "titleEn": "Local station control level", "systemType": "both", "lessons": [{ "id": "l01", "title": "本地站控层（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/local-control" }, { "id": "l02", "title": "模块 9 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m10", "index": 10, "title": "OCC 安装的 PSD 设备详细说明", "titleEn": "OCC-installed PSD equipment", "systemType": "both", "lessons": [{ "id": "l01", "title": "OCC 设备（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/occ-equipment" }, { "id": "l02", "title": "模块 10 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m11", "index": 11, "title": "车站控制室（SCR）/车站维护室（SMR）内安装的 PSD 设备", "titleEn": "SCR / SMR equipment", "systemType": "both", "lessons": [{ "id": "l01", "title": "SCR/SMR 设备（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/scr-smr" }, { "id": "l02", "title": "模块 11 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m12", "index": 12, "title": "PSD 电源配置与架构", "titleEn": "Power supply configuration", "systemType": "both", "lessons": [{ "id": "l01", "title": "电源架构（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/power" }, { "id": "l02", "title": "模块 12 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m13", "index": 13, "title": "PSD 系统设计、安装及接地要求", "titleEn": "Design, installation & earthing", "systemType": "both", "lessons": [{ "id": "l01", "title": "安装与接地（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/installation" }, { "id": "l02", "title": "模块 13 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m14", "index": 14, "title": "PSD 系统各项标准", "titleEn": "Applicable standards", "systemType": "both", "lessons": [{ "id": "l01", "title": "标准清单（图文）", "kind": "doc", "durationMin": 30, "ref": "/docs/standards" }, { "id": "l02", "title": "模块 14 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m15", "index": 15, "title": "PSD 系统竣工图纸及接线图研究", "titleEn": "As-built drawings & wiring diagrams", "systemType": "both", "lessons": [{ "id": "l01", "title": "图纸识读（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/drawings" }, { "id": "l02", "title": "模块 15 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m16", "index": 16, "title": "门控与监控单元——组件、功能及布线", "titleEn": "DCU: components, functions & wiring", "systemType": "both", "lessons": [{ "id": "l01", "title": "DCU 3D 交互", "kind": "scenario", "durationMin": 45, "ref": "dcu-unit" }, { "id": "l02", "title": "模块 16 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m17", "index": 17, "title": "传感器与联锁装置", "titleEn": "Sensors & interlocks", "systemType": "both", "lessons": [{ "id": "l01", "title": "传感器与联锁（3D 交互）", "kind": "scenario", "durationMin": 45, "ref": "psd-sensors" }, { "id": "l02", "title": "模块 17 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m18", "index": 18, "title": "正常、退化及紧急 PSD 运行", "titleEn": "Normal / degraded / emergency operation", "systemType": "both", "lessons": [{ "id": "l01", "title": "三种运行模式演练", "kind": "scenario", "durationMin": 45, "ref": "door-cycle" }, { "id": "l02", "title": "模块 18 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m19", "index": 19, "title": "故障诊断与排除程序", "titleEn": "Fault diagnosis & troubleshooting", "systemType": "both", "lessons": [{ "id": "l01", "title": "故障排查分步指南", "kind": "scenario", "durationMin": 45, "ref": "door-fault" }, { "id": "l02", "title": "模块 19 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m20", "index": 20, "title": "预防性维护与纠正性维护", "titleEn": "Preventive & corrective maintenance", "systemType": "both", "lessons": [{ "id": "l01", "title": "维护流程 3D 演练", "kind": "scenario", "durationMin": 45, "ref": "psd-maintenance" }, { "id": "l02", "title": "模块 20 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m21", "index": 21, "title": "安全程序、报警及事件处理", "titleEn": "Safety procedures, alarms & events", "systemType": "both", "lessons": [{ "id": "l01", "title": "安全与报警（图文）", "kind": "doc", "durationMin": 40, "ref": "/docs/safety" }, { "id": "l02", "title": "模块 21 评估", "kind": "quiz", "durationMin": 20 }] },
+    { "id": "m22", "index": 22, "title": "综合演练与实用故障仿真", "titleEn": "Practical fault simulation", "systemType": "both", "lessons": [{ "id": "l01", "title": "综合故障仿真演练", "kind": "scenario", "durationMin": 60, "ref": "door-fault" }, { "id": "l02", "title": "模块 22 评估", "kind": "quiz", "durationMin": 20 }] }
+  ]
+}

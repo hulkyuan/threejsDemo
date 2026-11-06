@@ -6,9 +6,31 @@ import { ModelViewer } from '@/components/model-viewer'
 
 export default function Page() {
   const [progress, setProgress] = useState(0)
-  const [modelUrl, setModelUrl] = useState('/model.glb')
+  const [modelUrl, setModelUrl] = useState('/demomodel.glb')
   const [modelName, setModelName] = useState('model.glb')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 支持两种入口：
+  // /?id=<模型id> —— 从模型库跳转，仅暴露 id，文件地址由查看器内部拼接
+  // /?model=<url> —— 兼容旧方式直接指定模型地址
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search)
+    const modelId = query.get('id')
+    const modelParam = query.get('model')
+    if (modelId && /^[0-9a-f-]{8,64}$/i.test(modelId)) {
+      setModelUrl(`/api/models/${modelId}/file`)
+      setModelName(modelId)
+      fetch(`/api/models/${modelId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.name) setModelName(data.name)
+        })
+        .catch(() => {})
+    } else if (modelParam) {
+      setModelUrl(modelParam)
+      setModelName(decodeURIComponent(modelParam.split('/').pop() ?? '模型库模型'))
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -34,23 +56,21 @@ export default function Page() {
         <ModelViewer progress={progress / 100} modelUrl={modelUrl} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,rgba(8,13,23,0.08)_40%,rgba(8,13,23,0.72)_100%)]" />
 
-        <header className="absolute left-0 right-0 top-0 flex items-center justify-between px-6 py-5 md:px-10 pointer-events-none">
-          <div className="flex items-center gap-3">
+        <header className="absolute left-0 right-0 top-0 flex items-center justify-between px-6 py-5 md:px-10 ">
+          {/* <div className="flex items-center gap-3">
             <div className="grid size-9 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300"><Box /></div>
             <div>
               <p className="text-sm font-semibold tracking-wide">MODEL LAB</p>
               <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Exploded view studio</p>
             </div>
-          </div>
+          </div> */}
           <div className="flex items-center gap-2">
-            {/* <input ref={fileInputRef} type="file" accept=".glb,model/gltf-binary" onChange={handleModelSelect} className="sr-only" />
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs text-cyan-200 transition hover:bg-cyan-300/20">
-              <Upload /> 选择 GLB 模型
-            </button> */}
-            {/* <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-slate-400 backdrop-blur md:flex">
-              <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
-              WebGL 实时渲染
-            </div> */}
+            <a href="/models" className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-xs text-slate-200 backdrop-blur transition hover:bg-white/10">
+              模型库
+            </a>
+            <a href="/cbt" className="flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs text-cyan-200 transition hover:bg-cyan-300/20">
+              <Sparkles /> 进入 PSD CBT 培训系统
+            </a>
           </div>
         </header>
 

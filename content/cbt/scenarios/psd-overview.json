@@ -1,0 +1,41 @@
+{
+  "id": "psd-overview",
+  "title": "PSD 系统概述（3D 巡览）",
+  "systemType": "both",
+  "model": "/demomodel.glb",
+  "category": "operation",
+  "description": "模块 1 首课：整体认识 PSD 系统的组成。对应需求主题 7。",
+  "steps": [
+    {
+      "id": "s1",
+      "title": "1. 全貌：什么是平台屏蔽门",
+      "narration": "平台屏蔽门（PSD）安装于站台边缘，将站台区与轨道区隔离。全高系统封顶到站台吊顶，半高系统高度约 1.5m。拖动模型可 360° 观察整体布置。",
+      "action": { "explode": 0 }
+    },
+    {
+      "id": "s2",
+      "title": "2. 滑动门（ASD）",
+      "narration": "ASD 与列车门一一对应，是乘客上下车的通道。观察模型中高亮的活动门扇与驱动机构。",
+      "action": { "highlight": ["door", "leaf"], "explode": 25 }
+    },
+    {
+      "id": "s3",
+      "title": "3. 应急门（EED）与端头门（PED）",
+      "narration": "EED 应急疏散门沿站台均匀布置，PED 端头门位于站台两端，均只在紧急情况下由站内手动开启。",
+      "safetyNote": "EED/PED 仅供紧急疏散使用，日常保持锁闭。",
+      "action": { "highlight": ["emergency", "end"], "explode": 50 }
+    },
+    {
+      "id": "s4",
+      "title": "4. 承重结构与固定门（FD）",
+      "narration": "固定门（FD）与承重结构构成门体框架，顶部通过吊挂系统固定于站台结构梁，底部导轨引导活动门。",
+      "action": { "highlight": ["frame", "fixed"], "explode": 80 }
+    },
+    {
+      "id": "s5",
+      "title": "5. 复原与小结",
+      "narration": "拖动滑杆将模型复原。小结：PSD = ASD 滑动门 + FD 固定门 + EED 应急门 + PED 端头门 + TSD 端头门 + 驱动与控制系统。",
+      "action": { "explode": 0 }
+    }
+  ]
+}

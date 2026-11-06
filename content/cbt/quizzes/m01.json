@@ -1,0 +1,70 @@
+{
+  "moduleId": "m01",
+  "title": "模块 1 评估：PSD 系统简介",
+  "questionsPerAttempt": 20,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "stem": "PSD 全高系统与半高系统的主要区别是什么？",
+      "options": [
+        { "id": "a", "text": "全高系统封顶至站台吊顶，将站台与轨道区完全隔离；半高系统高度约 1.5m，仅隔离站台边缘" },
+        { "id": "b", "text": "全高系统用于地上站，半高系统用于地下站" },
+        { "id": "c", "text": "半高系统没有滑动门，只有应急门" },
+        { "id": "d", "text": "两者没有区别，只是叫法不同" }
+      ],
+      "answer": ["a"],
+      "explanation": "全高 PSD 将站台与轨道完全隔断，具备环控/节能效果；半高 PSD 仅起安全防护作用。"
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "stem": "ASD 指的是：",
+      "options": [
+        { "id": "a", "text": "应急疏散门" },
+        { "id": "b", "text": "与列车门对应的滑动门" },
+        { "id": "c", "text": "端头门" },
+        { "id": "d", "text": "固定门" }
+      ],
+      "answer": ["b"],
+      "explanation": "ASD（Automatic Sliding Door）是与列车客室门一一对应的滑动门。"
+    },
+    {
+      "id": "q3",
+      "type": "truefalse",
+      "stem": "EED（应急门）在客流高峰时可由站务员打开用于上下客。",
+      "options": [
+        { "id": "true", "text": "正确" },
+        { "id": "false", "text": "错误" }
+      ],
+      "answer": ["false"],
+      "explanation": "EED 仅供紧急疏散使用，日常保持锁闭。"
+    },
+    {
+      "id": "q4",
+      "type": "multi",
+      "stem": "以下哪些属于 PSD 门体类型？（多选）",
+      "options": [
+        { "id": "a", "text": "ASD 滑动门" },
+        { "id": "b", "text": "FD 固定门" },
+        { "id": "c", "text": "PED 端头门" },
+        { "id": "d", "text": "SIG 信号系统" }
+      ],
+      "answer": ["a", "b", "c"],
+      "explanation": "SIG 属于信号系统，不属于门体。"
+    },
+    {
+      "id": "q5",
+      "type": "single",
+      "stem": "需求文档要求 PSD-CBT 模块的总课时为：",
+      "options": [
+        { "id": "a", "text": "10 小时" },
+        { "id": "b", "text": "20 小时" },
+        { "id": "c", "text": "40 小时" },
+        { "id": "d", "text": "80 小时" }
+      ],
+      "answer": ["b"],
+      "explanation": "需求明确 PSD-CBT 模块应为 20 小时。"
+    }
+  ]
+}

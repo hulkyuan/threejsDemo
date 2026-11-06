@@ -1,0 +1,42 @@
+{
+  "id": "door-cycle",
+  "title": "PSD 门开/关顺序（带信号时序）",
+  "systemType": "both",
+  "model": "/demomodel.glb",
+  "category": "operation",
+  "description": "按需求第 10 条主题演练：从列车对位信号到门关闭锁定的完整时序。步骤为 JSON 数据，新增流程无需改代码。",
+  "steps": [
+    {
+      "id": "s1",
+      "title": "1. 列车对位与开门允许信号",
+      "narration": "列车停稳并对位后，信号系统（SIG）向 PSD 控制单元发送开门允许命令。门控单元 DCU 校验：站台侧无障碍、紧急控制回路正常，才会执行下一步。",
+      "safetyNote": "开门允许信号缺失时严禁手动强制开门。",
+      "action": { "highlight": ["door", "leaf"], "explode": 0 }
+    },
+    {
+      "id": "s2",
+      "title": "2. DCU 驱动门机动作",
+      "narration": "DCU（门控与监控单元）接收命令后驱动门机电机，ASD（滑动门）与 TSD（端头门）按预设速度曲线同步开启。PED（屏蔽门体）保持与列车门间隙对齐。",
+      "action": { "highlight": ["motor", "belt"], "explode": 30 }
+    },
+    {
+      "id": "s3",
+      "title": "3. 全开状态与传感器确认",
+      "narration": "门全开后，开到位传感器信号回传 DCU。乘客上下车期间，防夹传感器（障碍物检测）持续监测门区。",
+      "action": { "highlight": ["sensor"], "explode": 50 }
+    },
+    {
+      "id": "s4",
+      "title": "4. 关门指令与防夹逻辑",
+      "narration": "发车条件满足后，SIG 下发关门命令。关门过程中若障碍物传感器触发，门立即反转开启并重新计时关门。",
+      "safetyNote": "关门最后 10mm 行程为强制锁定段，防夹逻辑不生效，须确保门区清空。",
+      "action": { "highlight": ["sensor", "door", "leaf"], "explode": 30 }
+    },
+    {
+      "id": "s5",
+      "title": "5. 锁定与发车允许反馈",
+      "narration": "门关闭并机械锁定后，锁闭信号经 DCU 汇总，向信号系统反馈'门锁闭'状态，允许列车发车。整套时序完成。",
+      "action": { "highlight": ["lock"], "explode": 0 }
+    }
+  ]
+}
